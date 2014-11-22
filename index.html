@@ -1,0 +1,187 @@
+<html>
+
+  <style>
+    body{
+      left:0px;
+      top:0px;
+      margin:0px;
+    }
+  </style>
+  <body>
+
+<script src="lib/three.js"></script>
+<script src="lib/jquery.min.js"></script>
+<script src="lib/TrackballControls.js"></script>
+<script src="lib/MouseMoveControls.js"></script>
+<script src="lib/ShaderLoader.js"></script>
+<script src="lib/underscore.js"></script>
+<script src="lib/GUI.js"></script>
+<script src="SnowflakeGeometry.js"></script>
+
+<script>
+
+    var scene, camera, renderer;
+    var geometry, material, mesh;
+    var controls;
+
+    var crystals = [];
+
+    var shaders = new ShaderLoader('shaders');
+
+    shaders.load( 'vs-snow' , 'snow' , 'vertex'   );
+    shaders.load( 'fs-snow' , 'snow' , 'fragment' );
+
+    shaders.shaderSetLoaded = function(){
+      init();
+      animate();
+    }
+
+
+    var matcap = THREE.ImageUtils.loadTexture( 'img/rough-aluminium.jpg' );
+    var uniforms = {
+      t_matcap:{type:"t" , value:matcap},
+      filled:{type:"f" , value:0}
+    }
+
+    var PARAMS = {
+
+      guide:{
+        
+        lengthRandomness: .5,
+        lengthMultiplier: .5,
+        heightRandomness: .5,
+        heightMultiplier: .5,
+        widthRandomness: 1,
+        widthMultiplier: .5,
+        branches: 2,
+        maxDepth: 6,
+        branchChance: .6,
+        minChildren: 10,
+        maxChildren: 20,
+        totalChildren: 0,
+        length: 1.,
+        width: 1.,
+        height: .1,
+        angle: .5,
+        position: .000001,
+
+      },
+
+      branch:{
+
+        length: 50,
+        width:  40,
+        height: 100,
+        extraH:.5, 
+        vDepth: .2,
+
+        lengthRandomness: .00001,
+        widthRandomness: .0001,
+        heightRandomness: .0001,
+        angleRange:.01
+        
+      }
+
+    }
+
+    function init() {
+
+ 
+
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize( window.innerWidth, window.innerHeight );
+       
+        window.addEventListener( 'resize', onWindowResize , false );
+
+        document.body.appendChild( renderer.domElement );
+
+            scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 30, 30000 );
+        camera.position.z = 500;
+
+        controls = new THREE.MouseMoveControls( camera , renderer.domElement );
+
+
+
+
+        var attributes = {
+          normal:{type:"v3" , value:null },
+          fade: { type:"f" , value:null },
+          edge: { type:"f" , value:null },
+          id: { type:"f" , value:null }
+        }
+        var vs = shaders.vs.snow;
+        var fs = shaders.fs.snow;
+    
+        var material = new THREE.ShaderMaterial({
+
+          attributes: attributes,
+          uniforms:   uniforms,
+          vertexShader: vs,
+          fragmentShader: fs,
+          //side: THREE.DoubleSide,
+          transparent: true,
+         // depthWrite: false
+
+        });
+
+        var geometry = new SnowflakeGeometry({
+          
+        });
+
+        var mesh = new THREE.Mesh( geometry, material );
+       // var mesh2 = new THREE.Mesh( geometry, material );
+       // mesh2.scale.z = -1;//Math.PI;
+        scene.add( mesh );
+        //scene.add( mesh2 );
+
+
+
+    }
+
+    function createSnowflake(){
+
+      var geometry = new SnowflakeGeometry(
+        PARAMS.guide,
+        PARAMS.branch
+      );
+
+
+    }
+
+
+    function animate() {
+
+        requestAnimationFrame( animate );
+
+        controls.update();
+       // mesh.rotation.x += 0.01;
+       // mesh.rotation.y += 0.02;
+
+       uniforms.filled.value += .03;
+
+        renderer.render( scene, camera );
+
+    }
+
+      // Resets the renderer to be the proper size
+  function onWindowResize(){
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+
+    renderer.setSize( window.innerWidth, window.innerHeight );
+   
+    var dpr = devicePixelRatio || 1;
+
+    //camUniforms.SS.value.x = window.innerWidth * dpr;
+    //camUniforms.SS.value.y = window.innerHeight * dpr;
+
+
+  }
+  </script>
+
+</body>
+</html>

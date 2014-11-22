@@ -15,7 +15,9 @@
 <script src="lib/MouseMoveControls.js"></script>
 <script src="lib/ShaderLoader.js"></script>
 <script src="lib/underscore.js"></script>
+<script src="lib/dat.gui.min.js"></script>
 <script src="lib/GUI.js"></script>
+<script src="lib/Tween.js"></script>
 <script src="SnowflakeGeometry.js"></script>
 
 <script>
@@ -24,9 +26,14 @@
     var geometry, material, mesh;
     var controls;
 
-    var crystals = [];
+    var snowflake;
+
+    var growSpeed = 200;
+    var shrinkSpeed = 100;
 
     var shaders = new ShaderLoader('shaders');
+
+    var gui = new dat.GUI();
 
     shaders.load( 'vs-snow' , 'snow' , 'vertex'   );
     shaders.load( 'fs-snow' , 'snow' , 'fragment' );
@@ -51,19 +58,39 @@
         lengthMultiplier: .5,
         heightRandomness: .5,
         heightMultiplier: .5,
-        widthRandomness: 1,
+        widthRandomness: .5,
         widthMultiplier: .5,
+        branchLateness: 0,//1.8,
         branches: 2,
         maxDepth: 6,
         branchChance: .6,
         minChildren: 10,
         maxChildren: 20,
-        totalChildren: 0,
         length: 1.,
         width: 1.,
         height: .1,
-        angle: .5,
-        position: .000001,
+        position: 0,
+
+      },
+
+      guideRanges:{
+
+        lengthRandomness: [ 0  , 1  ],
+        lengthMultiplier: [ 0  , 1  ],
+        heightRandomness: [ 0  , 1  ],
+        heightMultiplier: [ 0  , 1  ],
+        widthRandomness:  [ 0  , 1  ],
+        widthMultiplier:  [ 0  , 1  ],
+        branchLateness:   [ 0  , 1  ],//1.8,
+        branches:         [ 1  , 20 ],
+        maxDepth:         [ 1  , 10 ],
+        branchChance:     [ 0  , 1  ],
+        minChildren:      [ 1  , 10 ],
+        maxChildren:      [ 11 , 30 ],
+        length:           [ .1 , 2 ],
+        width:            [ .1 , 2 ],
+        height:           [ .1 , .2 ],
+        position:         [  0 , 1 ]
 
       },
 
@@ -80,65 +107,74 @@
         heightRandomness: .0001,
         angleRange:.01
         
-      }
+      },
+
+      branchRanges:{
+
+        length: [ 20 , 100 ],
+        width:  [ 10 , 60 ],
+        height: [ 5 , 50  ],
+        extraH: [ 0 , .5 ], 
+        vDepth: [ 0 , .5 ],
+
+        lengthRandomness: [ 0.00001 , .1 ],
+        widthRandomness: [ 0.00001 , .1 ],
+        heightRandomness: [ 0.00001 , .1 ],
+        angleRange:[ 0.00001 , .1 ],        
+      },
+
+      randomSnowflake: function(){ nextSnowflake( true ); },
+      nextSnowflake: function(){ nextSnowflake(); },
 
     }
 
     function init() {
 
- 
-
-        renderer = new THREE.WebGLRenderer();
-        renderer.setSize( window.innerWidth, window.innerHeight );
-       
-        window.addEventListener( 'resize', onWindowResize , false );
-
-        document.body.appendChild( renderer.domElement );
-
-            scene = new THREE.Scene();
-
-        camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 30, 30000 );
-        camera.position.z = 500;
-
-        controls = new THREE.MouseMoveControls( camera , renderer.domElement );
+      initGUI();
 
 
+      renderer = new THREE.WebGLRenderer();
+      renderer.setSize( window.innerWidth, window.innerHeight );
+     
+      window.addEventListener( 'resize', onWindowResize , false );
 
+      document.body.appendChild( renderer.domElement );
 
-        var attributes = {
-          normal:{type:"v3" , value:null },
-          fade: { type:"f" , value:null },
-          edge: { type:"f" , value:null },
-          id: { type:"f" , value:null }
-        }
-        var vs = shaders.vs.snow;
-        var fs = shaders.fs.snow;
-    
-        var material = new THREE.ShaderMaterial({
+          scene = new THREE.Scene();
 
-          attributes: attributes,
-          uniforms:   uniforms,
-          vertexShader: vs,
-          fragmentShader: fs,
-          //side: THREE.DoubleSide,
-          transparent: true,
-         // depthWrite: false
+      camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 30, 30000 );
+      camera.position.z = 250;
 
-        });
-
-        var geometry = new SnowflakeGeometry({
-          
-        });
-
-        var mesh = new THREE.Mesh( geometry, material );
-       // var mesh2 = new THREE.Mesh( geometry, material );
-       // mesh2.scale.z = -1;//Math.PI;
-        scene.add( mesh );
-        //scene.add( mesh2 );
+      controls = new THREE.MouseMoveControls( camera , renderer.domElement );
 
 
 
+
+      var attributes = {
+        normal:{type:"v3" , value:null },
+        fade: { type:"f" , value:null },
+        edge: { type:"f" , value:null },
+        id: { type:"f" , value:null }
+      }
+      var vs = shaders.vs.snow;
+      var fs = shaders.fs.snow;
+  
+      snowflakeMaterial = new THREE.ShaderMaterial({
+
+        attributes: attributes,
+        uniforms:   uniforms,
+        vertexShader: vs,
+        fragmentShader: fs,
+        transparent: true,
+
+      });
+
+      nextSnowflake();
+
+
+     // uniforms.filled.value = PARAMS.guide.maxDepth*2;
     }
+
 
     function createSnowflake(){
 
@@ -147,19 +183,153 @@
         PARAMS.branch
       );
 
+      snowflake = new THREE.Mesh( geometry , snowflakeMaterial );
+      scene.add( snowflake );
+
+      var i = { v: 0 };
+      var f = { v: PARAMS.guide.maxDepth * 2 }
+
+      var t = new TWEEN.Tween( i ).to( f , (PARAMS.guide.maxDepth * 2 ) * growSpeed );
+
+      t.onUpdate( function(){
+        uniforms.filled.value = i.v;
+      });
+
+      t.onComplete( function(){
+
+        snowflakeFinished();
+
+      });
+
+      t.start();
 
     }
 
+    function removeSnowflake( callback ){
+
+      var i = { v: uniforms.filled.value };
+      var f = { v: 0 }
+
+      var t = new TWEEN.Tween( i ).to( f , i.v * shrinkSpeed );
+
+      t.onUpdate( function(){
+        uniforms.filled.value = i.v;
+      });
+
+      t.onComplete( function(){
+
+        scene.remove( snowflake );
+        snowflakeDestroyed();
+        if( callback ) callback();
+
+      });
+
+      t.start();
+
+    }
+
+    function nextSnowflake( random ){
+
+      if( snowflake ){
+
+        removeSnowflake(function(){
+
+          if( random ) randomize();
+          createSnowflake();
+
+        });
+
+      }else{
+      
+        if( random ) randomize();
+        createSnowflake();
+
+      }
+
+    }
+
+
+    function snowflakeFinished(){   snowflakeTweening = false; }
+    function snowflakeDestroyed(){  snowflakeTweening = false; }
+
+
+    function initGUI(){
+
+     // gui = new dat.GUI({ autoplace: false });
+
+      var guides = gui.addFolder( 'guide');
+
+      for( var propt in PARAMS.guide ){
+
+        var range = PARAMS.guideRanges[ propt ];
+
+        if( range ){
+          guides.add( PARAMS.guide , propt , range[0] , range[1] ).listen();
+        }
+
+      }
+
+      var branches = gui.addFolder( 'branch');
+
+      for( var propt in PARAMS.branch ){
+
+        var range = PARAMS.branchRanges[ propt ];
+
+        if( range ){
+          branches.add( PARAMS.branch , propt , range[0] , range[1] ).listen();
+        }
+
+      }
+
+
+      gui.add( PARAMS , 'nextSnowflake' );
+      gui.add( PARAMS , 'randomSnowflake' );
+
+
+    }
+    
+    function randomize(){
+
+      for( var propt in PARAMS.guide ){
+
+        var range = PARAMS.guideRanges[ propt ];
+
+        if( range ){
+        var v = range[0] + Math.random() * (range[1] - range[0])
+        PARAMS.guide[ propt ] = v;
+
+        }
+
+      }
+
+      for( var propt in PARAMS.branch ){
+
+        var range = PARAMS.branchRanges[ propt ];
+
+        if( range ){
+        var v = range[0] + Math.random() * (range[1] - range[0])
+        PARAMS.branch[ propt ] = v;
+
+        }
+
+      }
+
+    }
 
     function animate() {
 
         requestAnimationFrame( animate );
 
         controls.update();
+        TWEEN.update();
        // mesh.rotation.x += 0.01;
        // mesh.rotation.y += 0.02;
 
-       uniforms.filled.value += .03;
+    /*   if( filling == true ){
+          uniforms.filled.value += .03;
+       }else{
+          uniforms.filled.value -= .03;
+       }*/
 
         renderer.render( scene, camera );
 

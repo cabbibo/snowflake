@@ -9,14 +9,15 @@ function SnowflakeGeometry( guideParams , branchParams ){
  
   this.guideParams = _.defaults( guideParams || {} , {
 
-    lengthRandomness: .5,
-    lengthMultiplier: .5,
-    heightRandomness: .5,
-    heightMultiplier: .5,
-    widthRandomness: 1,
-    widthMultiplier: .5,
+    lengthRandomness: .1,
+    lengthMultiplier: .4,
+    heightRandomness: .1,
+    heightMultiplier: 1.2,
+    widthRandomness: .1,
+    widthMultiplier: .4,
     branches: 2,
     maxDepth: 6,
+    branchLateness: .2,
     branchChance: .6,
     minChildren: 10,
     maxChildren: 20,
@@ -32,8 +33,8 @@ function SnowflakeGeometry( guideParams , branchParams ){
 
   this.branchParams = _.defaults( branchParams || {} , {
 
-    length: 50,
-    width:  40,
+    length: 100,
+    width:  100,
     height: 100,
     extraH:.5, 
     vDepth: .2,
@@ -103,17 +104,11 @@ function SnowflakeGeometry( guideParams , branchParams ){
       angle: ( i / 6 ) * 2 * Math.PI
     }
 
-   
-
-    console.log( this.guideParams );
-      
-
     this.createBranch( info , this.guideParams );
 
   }
 
   var g = this.createGeometry();
-  console.log( g );
   return g;
   
 
@@ -135,23 +130,26 @@ SnowflakeGeometry.prototype.createRecursionArray = function( object , depth  ){
 
   depth += 1;
 
-  for( var i = 0; i < gp.branches; i++ ){
+  for( var i = 0; i < gp.branches * ( gp.maxDepth / (depth +1)); i++ ){
 
     var c = Math.random();
     if( c < gp.branchChance || gp.totalChildren < gp.minChildren ){
 
+      var lateBranch = (Math.floor( Math.random() * (depth / gp.maxDepth ) * 3 )/3) * Math.PI;
+      var randomBranch = (Math.floor( Math.random() * 3 )/3) * Math.PI
+
+      var angle = lateBranch  * gp.branchLateness + randomBranch * ( 1 - gp.branchLateness )
       var o ={ 
         length: gp.lengthMultiplier + Math.random() * gp.lengthRandomness,
         width: gp.widthMultiplier + Math.random() * gp.widthRandomness,
         height: gp.heightMultiplier + Math.random() * gp.heightRandomness,
-        angle: (Math.floor( Math.random() * 3 )/3) * Math.PI, //.3 + Math.random() * .1, //.1*( depth+1) ,
+        angle: angle, //.3 + Math.random() * .1, //.1*( depth+1) ,
         position: Math.random() * 2. ,
         children:[]
       }
 
 
       gp.totalChildren ++;
-      console.log( gp.totalChildren );
       object.children.push( o );
       this.createRecursionArray( o , depth );
 
